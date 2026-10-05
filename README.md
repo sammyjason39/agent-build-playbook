@@ -40,19 +40,116 @@ repo C ─┘   │ → CATALOG (coverage map) → prompt pack       │    (bri
 
 ## Instalasi
 
-**Opsi 1: symlink ke skill personal** (berlaku di semua proyek di mesin ini)
+Keempat skill memakai format standar **Agent Skills** (folder berisi `SKILL.md` dengan frontmatter `name` dan
+`description`, plus `scripts/`, `templates/`, `references/`). Format ini dibaca oleh Claude Code, opencode,
+Hermes, dan Antigravity. Bedanya hanya di folder tempat skill dicari.
+
+**Prasyarat umum:** `git`, `gh` (sudah login), `jq`, dan `opencode` (sudah login) sebagai eksekutor agen. Untuk
+monorepo JS juga perlu Node 22 dan pnpm. Script memakai bash, jadi di Windows jalankan lewat WSL.
+
+### Cara tercepat (semua tool sekaligus)
+
 ```sh
 git clone https://github.com/sammyjason39/agent-build-playbook ~/Github/agent-build-playbook
-~/Github/agent-build-playbook/install.sh        # menautkan skills/* ke ~/.claude/skills/
+cd ~/Github/agent-build-playbook
+./install.sh all          # atau pilih: ./install.sh claude opencode hermes antigravity antigravity-cli
 ```
 
-**Opsi 2: sebagai plugin Claude Code**
+`install.sh` membuat **symlink**, jadi cukup `git pull` untuk memperbarui semua tool sekaligus. Folder asli
+dengan nama yang sama tidak akan ditimpa. Kalau sebuah tool atau sandbox tidak mengikuti symlink, pakai
+`SKILLS_COPY=1 ./install.sh <target>` untuk menyalin file (setelah `git pull`, jalankan ulang).
+
+| Target `install.sh` | Lokasi global | Dipakai oleh |
+|---|---|---|
+| `claude` | `~/.claude/skills/<skill>` | Claude Code (opencode juga membaca folder ini) |
+| `opencode` | `~/.config/opencode/skills/<skill>` | opencode |
+| `agents` | `~/.agents/skills/<skill>` | opencode dan tool lain yang membaca `.agents/skills` |
+| `antigravity` | `~/.gemini/config/skills/<skill>` | Antigravity IDE |
+| `antigravity-cli` | `~/.gemini/antigravity-cli/skills/<skill>` | Antigravity CLI (`agy`) |
+| `hermes` | `~/.hermes/skills/agent-build-playbook/` | Hermes Agent (satu kategori berisi 4 skill) |
+
+### Claude Code
+
+**Opsi A: plugin** (paling mudah, tanpa clone)
 ```
 /plugin marketplace add sammyjason39/agent-build-playbook
 /plugin install agent-build-playbook@agent-build-playbook
 ```
+Untuk update: `/plugin marketplace update agent-build-playbook`.
 
-Prasyarat: `git`, `gh` (sudah login), `jq`, `opencode` (sudah login), Node 22 dan pnpm untuk monorepo JS.
+**Opsi B: skill personal** lewat `./install.sh claude`. Skill tersedia di semua proyek.
+
+**Opsi C: per proyek.** Salin atau symlink `skills/*` ke `<repo>/.claude/skills/` lalu commit, supaya seluruh
+tim mendapatkannya.
+
+Cek di Claude Code: ketik `/` lalu cari `agent-orchestrator`. Bisa juga langsung bilang "pakai skill
+agent-orchestrator".
+
+### opencode
+
+opencode mencari skill di `~/.config/opencode/skills/`, `~/.claude/skills/`, dan `~/.agents/skills/` (global),
+serta di `.opencode/skills/`, `.claude/skills/`, dan `.agents/skills/` di proyek. Jadi:
+
+```sh
+./install.sh opencode     # atau: ./install.sh claude  (opencode ikut membacanya)
+opencode debug skill | grep -E '"name": "(multi-repo-prd|agent-orchestrator|hardening-review-loop|monorepo-release)"'
+```
+
+Untuk per proyek: `mkdir -p .opencode/skills && ln -s ~/Github/agent-build-playbook/skills/* .opencode/skills/`.
+
+### Hermes Agent
+
+**Opsi A: tap GitHub** (registry Hermes, tanpa clone)
+```sh
+hermes skills tap add sammyjason39/agent-build-playbook
+hermes skills install sammyjason39/agent-build-playbook/multi-repo-prd
+hermes skills install sammyjason39/agent-build-playbook/agent-orchestrator
+hermes skills install sammyjason39/agent-build-playbook/hardening-review-loop
+hermes skills install sammyjason39/agent-build-playbook/monorepo-release
+hermes skills list | grep -E "multi-repo-prd|agent-orchestrator|hardening-review-loop|monorepo-release"
+```
+Lihat isi skill sebelum memasang dengan `hermes skills inspect sammyjason39/agent-build-playbook/<skill>`.
+Untuk update: `hermes skills check` lalu `hermes skills update`.
+
+**Opsi B: folder eksternal** (direkomendasikan kalau Anda juga mengedit skill). Setelah clone, tambahkan ke
+`~/.hermes/config.yaml`:
+```yaml
+skills:
+  external_dirs:
+    - ~/Github/agent-build-playbook/skills
+```
+Bisa juga dengan `./install.sh hermes`, yang membuat kategori `~/.hermes/skills/agent-build-playbook` → `skills/`.
+
+**Per proyek:** taruh di `<repo>/.agents/skills/` atau `<repo>/.hermes/skills/`, lalu jalankan `hermes skills trust`
+di repo itu. Hermes hanya memuat skill proyek dari repo yang sudah di-trust.
+
+### Antigravity (IDE dan CLI `agy`)
+
+IDE dan CLI memakai folder global yang **berbeda**:
+
+```sh
+./install.sh antigravity        # IDE: ~/.gemini/config/skills/  (lokasi lama ~/.gemini/antigravity/skills/ juga dibaca)
+./install.sh antigravity-cli    # CLI agy: ~/.gemini/antigravity-cli/skills/
+```
+
+Untuk per proyek, keduanya membaca `<workspace>/.agents/skills/<skill>/`:
+```sh
+mkdir -p .agents/skills && cp -R ~/Github/agent-build-playbook/skills/* .agents/skills/
+```
+Folder skill proyek menimpa skill global dengan nama yang sama. Muat ulang workspace atau mulai sesi `agy`
+baru setelah memasang.
+
+### Catatan kompatibilitas
+
+- Skill ditulis dengan **Claude Code sebagai koordinator** dan **opencode sebagai eksekutor**. Di Hermes atau
+  Antigravity, perannya sama: agen yang Anda ajak bicara menjadi koordinator, sedangkan script tetap menjalankan
+  `opencode run` di worktree terpisah.
+- Fitur khusus Claude Code (Monitor, shell background) punya padanannya di tool lain:
+  - jalankan `launch.sh` di background (`nohup … &` atau tab terminal lain);
+  - pantau dengan `watch.sh`, yang mencetak satu baris per commit, `STALL`, dan `FINISHED`;
+  - untuk CI pakai `ci-watch.sh`.
+- Script mencari konfigurasi lewat `ORCH_ROOT`. Jalankan `export ORCH_ROOT=~/Github/<repo>-wt/_orchestration`
+  sebelum memakai `agent-orchestrator` (lihat `skills/agent-orchestrator/references/opencode.md`).
 
 ## Cara pakai singkat
 
