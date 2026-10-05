@@ -1,6 +1,6 @@
 ---
 name: hardening-review-loop
-description: Review code produced by coding agents (or anyone) for production readiness, turn findings into tightly-scoped fix tasks for opencode agents, verify every fix yourself, merge, and repeat until CI is green and the checklist is clean. Use when the user asks to check/review an agent's work, "is it on the right track", "fix everything until production ready", or after a build wave finishes.
+description: Review code produced by coding agents (or anyone) for production readiness, turn findings into tightly-scoped fix tasks for worker agents (opencode, pi, Antigravity, …), verify every fix yourself, merge, and repeat until CI is green and the checklist is clean. Use when the user asks to check/review an agent's work, "is it on the right track", "fix everything until production ready", or after a build wave finishes.
 ---
 
 # Hardening review loop
@@ -29,8 +29,8 @@ task, write a prompt with `agent-orchestrator/templates/task-prompt.md` that inc
 - the out-of-scope list.
 
 If a fix needs a product or security trade-off, **ask the owner** with options and a recommendation. Record
-the answer as `K-xx` and write an RFC when a locked doc changes. Examples: public access without login, token
-lifetime, embedding dimension, publishing.
+the answer as `K-xx` and write an RFC when a locked doc changes. Examples: opening an endpoint to anonymous
+users, token lifetimes, data-retention rules, breaking API changes, publishing.
 
 ## 3. Execute
 Use `agent-orchestrator`: worktree, launch, watch, review the diff, check scope, re-run the gates, merge, push,

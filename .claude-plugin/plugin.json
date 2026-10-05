@@ -1,7 +1,7 @@
 {
   "name": "agent-build-playbook",
-  "version": "0.2.0",
-  "description": "Build modular products with orchestrated opencode agents: multi-repo PRD + one-shot prompt packs, in-place modularization of a single complex monolith (coupling analysis, boundary ratchet, strangler extraction), worktree-isolated agent runs with review-before-merge, hardening loops and monorepo release.",
+  "version": "0.3.0",
+  "description": "A high-reasoning coordinator AI plans and dispatches work to CLI coding agents (opencode, pi, Antigravity agy, custom) in isolated git worktrees, reviews every diff and keeps CI green. Standalone orchestration for any repo, plus optional skills for multi-repo product planning, in-place monolith modularization, hardening and monorepo release.",
   "author": {
     "name": "sammyjason39"
   }

@@ -1,10 +1,10 @@
 # Review → merge → CI (never skip a step)
 
-An agent's report is a claim, not evidence. These steps turned up real defects that agents reported as done:
-- a payment-signature algorithm copied from a source repo was wrong;
-- the orchestrator's own fix allowed self-approval, and a later agent caught it;
-- a `--theirs` conflict resolution silently removed a security gate;
-- the generated docs drifted because `pnpm docs` ran a pnpm built-in instead of the script.
+An agent's report is a claim, not evidence. Each step below has caught real defects that were reported as done:
+- logic copied from old code that was wrong in the first place;
+- a fix that opened a new hole (for example, a requester able to approve their own request);
+- a blanket conflict resolution that silently dropped someone else's fix;
+- generated files that drifted because the wrong command was run.
 
 ## 1. Read the final report
 `tail -c 4000 $ORCH_ROOT/logs/<name>.log` — the table, the commands run, and "not done / proposals".

@@ -1,69 +1,62 @@
 # Production-readiness checklist
 
-Each item below was a real defect in the reference build. The defects were reported as done by agents and were
-caught only by review, tests, or CI. Check every item against the code.
+Agents routinely report these as done when they are not. Check every item against the code, and skip the items
+that do not apply to the stack.
 
-## Tenancy and data access
-- [ ] The runtime DB login is **not** an owner, superuser or BYPASSRLS role, and boot refuses one in
-      production. Check for a silent fallback to the owner URL.
-- [ ] Every table has RLS ENABLE + FORCE, including outbox and inbox tables.
-- [ ] The policy tolerates an empty tenant setting (`NULLIF(current_setting(..., true), '')::uuid`) and does not
-      raise on pooled connections.
-- [ ] Isolation tests go through the **real runtime connection**, never a hand-issued `SET ROLE`.
-- [ ] The request context is built **per request**. A singleton context means every request shares a tenant.
-- [ ] Cross-module calls execute **as the caller**, not as a fixed host or boot identity.
-- [ ] Public routes resolve the tenant from an unguessable token (hash-only storage) plus a second factor such
-      as a provider signature or contact proof. Never from the body.
+## Data access and multi-tenancy
+- [ ] The application connects with a **least-privilege** database role, never the owner or admin role, and
+      startup refuses a privileged connection in production. Look for silent fallbacks to an admin URL.
+- [ ] Tenant or ownership filtering is enforced in one place: row-level security, a repository layer or a query
+      scope. A handler that forgets it must fail closed.
+- [ ] Isolation tests go through the **real runtime path**. Tenant A cannot read or write tenant B through the
+      API, background jobs, events or AI tools.
+- [ ] The request context, meaning the user and tenant, is built **per request**, never cached in a singleton.
+- [ ] Internal calls between modules run **as the caller**, not as a fixed system identity.
 
-## Identity, auth, approvals
-- [ ] JWT/session secrets have a minimum length and boot refuses empty ones; `exp`/`iat` are required; the TTL
-      is bounded with a hard ceiling; `nbf` is checked.
-- [ ] External tokens cannot claim system/automation/agent actors.
-- [ ] Approvals:
-  - "auto" mode only *creates* the request;
-  - the requester can never decide;
-  - required role, thresholds and quorum are enforced;
-  - deep links never decide by themselves;
-  - the approval is created at submission, not lazily at decision time.
-- [ ] The guard is fail-closed: a route without a decorator is denied.
-- [ ] Audit is written on success only, and on the **resolved** tenant for public routes.
+## Identity, authorization, approvals
+- [ ] Secrets are required, strong and never defaulted to empty. Tokens expire, and lifetimes have an upper bound.
+- [ ] Clients cannot elevate themselves, for example by claiming an admin or system role in a token or request body.
+- [ ] Authorization is fail-closed: a route without an explicit rule is denied.
+- [ ] Approval flows: a requester cannot approve their own request, required roles and thresholds are enforced,
+      and links or automation never approve on their own.
+- [ ] Public (unauthenticated) endpoints authenticate the caller another way, such as a signed payload,
+      unguessable token or second factor, and never trust identifiers from the body.
+- [ ] An audit trail records who did what. It is written on success and attributed to the right tenant.
 
-## Integrations
-- [ ] Webhook signatures are verified on the **raw body**, with the exact provider algorithm checked against the
-      provider docs (e.g. Midtrans uses plain SHA-512, not HMAC). Amounts are matched to the intent. Mock
-      providers are off unless explicitly enabled.
-- [ ] Secrets are never logged and never sent to hosts other than the compiled-in provider base URL.
-- [ ] Embedding and vector dimensions are fixed and enforced; changing them needs a migration and a re-embed.
+## External integrations
+- [ ] Webhooks verify signatures exactly as the provider documents. Check the algorithm against the docs; do not
+      copy it from old code. Verification uses the raw body, and amounts or states are matched to your records.
+- [ ] Test or sandbox shortcuts (mock providers, debug flags) are off by default in production.
+- [ ] Credentials are never logged, never returned by the API, and only sent to their intended host.
 
-## Time, money, ids
-- [ ] Day boundaries use the **tenant time zone**, not server UTC. Check SQL `::date`, `CURRENT_DATE`,
-      `date_trunc` and JS `new Date()` business logic. Tests must not depend on the wall-clock hour (they failed
-      between 00:00 and 07:00 WIB).
-- [ ] Money and quantity are decimal types and decimal math, never floats.
-- [ ] Id functions exist on the **minimum supported DB version**. For example `uuidv7()` is PG 18 only, so
-      PG 16 needs a polyfill, created by the migration runner before module migrations.
+## Time, money, identifiers
+- [ ] Business dates use the **user's or tenant's time zone**, not the server's. Tests do not depend on the
+      wall-clock hour or date.
+- [ ] Money and quantities use decimal types and decimal math, never binary floats.
+- [ ] Every database function, extension or feature used exists on the **oldest supported version** of the
+      database or runtime, or is polyfilled by migrations.
 
-## Correctness under concurrency
-- [ ] Commands are idempotent (idempotency keys), and consumers dedupe (`inbox`).
-- [ ] Reserve → confirm/release instead of distributed transactions. A recovery sweeper exists for stuck
-      reservations.
-- [ ] Billing/stock never double-counts under parallel runs (tested with parallel calls).
+## Concurrency and consistency
+- [ ] Commands are idempotent (idempotency keys), and event consumers deduplicate.
+- [ ] There are no distributed transactions. Use reserve → confirm/release or an outbox, plus a recovery job for
+      stuck states.
+- [ ] Double-processing (billing, stock, payouts) is tested with concurrent calls.
 
-## API hygiene
-- [ ] Validation errors map to 400, not 500.
-- [ ] Error responses do not reveal which factor failed when that would help an attacker.
+## API and error handling
+- [ ] Validation errors return 4xx, not 500. Unexpected errors are logged with context and returned without
+      internals.
+- [ ] Error messages do not reveal which security check failed.
 
-## Build, CI, release
-- [ ] Generated docs (OpenAPI, SDK, MCP) are deterministic: no random defaults or timestamps. CI fails on
-      drift. Use the right command: `pnpm run docs`, not `pnpm docs`, which is a built-in.
-- [ ] Tests run on the same DB major version and extensions as production (service container in CI).
-- [ ] Every package declares the dependencies it imports, with no undeclared workspace dependencies and no
-      cycles.
-- [ ] Tarballs contain no tests or fixtures, and **every** published package is checked, including nested ones.
-- [ ] Timing-sensitive tests: compute `now()` once, and stay well clear of limits (no `limit + 1 s`).
-- [ ] Lint runs with zero warnings, typecheck passes, and boundary lint passes.
+## Build, tests, CI, release
+- [ ] CI runs lint (zero warnings), typecheck or compile, the boundary or architecture checks, and the tests, on
+      the same database and runtime versions as production.
+- [ ] Generated artifacts (API specs, clients, docs) are deterministic, and CI fails when they are stale.
+- [ ] Every package or module declares the dependencies it uses, with no dependency cycles.
+- [ ] Release artifacts contain only what consumers need: no tests, fixtures or secrets.
+- [ ] There are no flaky tests. Compute "now" once, stay clear of time limits, and do not depend on test order.
 
-## Docs
-- [ ] There is an integration or adoption guide that matches the code: env vars, roles, migration order,
-      host-bound capabilities, a production checklist.
-- [ ] Every owner decision is recorded (`K-xx`), and every change to locked docs has an RFC.
+## Documentation
+- [ ] A setup or integration guide matches the code: env vars, roles, migrations, required services, and a
+      production checklist.
+- [ ] Decisions with trade-offs are recorded (a decisions table or ADRs), and changes to agreed architecture go
+      through an RFC.

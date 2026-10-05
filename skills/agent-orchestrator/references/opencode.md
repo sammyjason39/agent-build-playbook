@@ -1,4 +1,7 @@
-# Running opencode agents (what worked, what broke)
+# Running worker agents — setup and failure modes
+
+Models, executors (opencode, pi, Antigravity `agy`, custom) and effort levels: see `executors.md`.
+The failure modes below were observed with opencode; most apply to any CLI agent.
 
 ## Setup once per project
 
@@ -9,18 +12,18 @@ cp <skill>/scripts/orch.env.example "$ORCH_ROOT/orch.env"  # edit REPO, WT_ROOT,
 cp <skill>/templates/agent-header.md "$ORCH_ROOT/prompts/_header.md"  # fill the <…> placeholders once
 ```
 
-`opencode` must already be logged in (`~/.local/share/opencode/auth.json`); `launch.sh` copies that file
-(mode 600) into each agent's private data dir.
+The executor must already be logged in. For opencode, `launch.sh` copies `~/.local/share/opencode/auth.json`
+(mode 600) into each agent's private data dir; pi keeps its sessions in `<data>/pi`.
 
 ## Per agent
 
 ```sh
 S=<skill>/scripts
-$S/new-worktree.sh p7f-host-hardening origin/main prod      # worktree + branch prod/p7f-host-hardening + install
-$EDITOR "$ORCH_ROOT/prompts/p7f-host-hardening.md"          # from templates/task-prompt.md
+$S/new-worktree.sh fix-login-timeout origin/main fix       # worktree + branch fix/fix-login-timeout + install
+$EDITOR "$ORCH_ROOT/prompts/fix-login-timeout.md"          # from templates/task-prompt.md
 # launch in a background shell (Bash run_in_background), then attach a Monitor:
-$S/launch.sh p7f-host-hardening '`apps/api-host/**`, `packages/module-sdk/src/contract/**`, `pnpm-lock.yaml` (via pnpm only)'
-$S/watch.sh p7f-host-hardening 20                            # Monitor command: commits / STALL / FINISHED
+$S/launch.sh fix-login-timeout '`src/auth/**`, `tests/auth/**`'
+$S/watch.sh fix-login-timeout 20                            # Monitor command: commits / STALL / FINISHED
 ```
 
 Placeholders filled by `launch.sh` in `_header.md`: `__WT__`, `__BR__`, `__BASE__`, `__OWN__`.

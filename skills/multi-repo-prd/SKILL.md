@@ -1,6 +1,6 @@
 ---
 name: multi-repo-prd
-description: Turn several existing repositories into one modular product plan — scan each source repo deeply (optionally with read-only opencode agents), brainstorm with the owner, then write a PRD with locked owner decisions, a locked module contract and design system, a module catalog with a coverage map, and a one-shot prompt pack (common brief, wave briefs, one spec per module) that coding agents can execute in parallel. Use when the user wants to merge/consolidate/modularise repos, "make a PRD from these repos", plan a modular monolith or marketplace of modules, or prepare oneshot prompts for agents.
+description: Turn several existing repositories into one modular product plan — scan each source repo deeply (optionally with read-only worker agents), brainstorm with the owner, then write a PRD with locked owner decisions, a locked module contract and design system, a module catalog with a coverage map, and a one-shot prompt pack (common brief, wave briefs, one spec per module) that coding agents can execute in parallel. Use when the user wants to merge/consolidate/modularise repos, "make a PRD from these repos", plan a modular monolith or marketplace of modules, or prepare oneshot prompts for agents.
 ---
 
 # Multi-repo → modular product plan + prompt pack

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # usage: scope-check.sh <name> '<ERE of allowed paths>'
 # Lists files the agent changed since its base and fails if any is outside its ownership.
-# Example: scope-check.sh p7f '^(apps/api-host/|packages/module-sdk/src/contract/|modules/employee-app/|pnpm-lock\.yaml$)'
+# Example: scope-check.sh fix-login-timeout '^(src/auth/|tests/auth/)'
 : "${ORCH_ENV:=${ORCH_ROOT:-}/orch.env}"
 # shellcheck disable=SC1090
 if [ -f "$ORCH_ENV" ]; then source "$ORCH_ENV"; fi

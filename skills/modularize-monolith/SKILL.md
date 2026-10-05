@@ -1,6 +1,6 @@
 ---
 name: modularize-monolith
-description: Split one large, overly complex repository into a modular monolith IN PLACE (strangler pattern) — measure real coupling (import graph, table ownership, git co-change), design the module map with the owner, add characterization tests and a boundary-violation ratchet, then extract modules leaf-first through small always-shippable steps executed by opencode agents, and decouple the database without downtime. Use when the user has a single big/legacy/tangled repo ("terlalu kompleks", "spaghetti", "god service") and wants it modular, wants boundaries, or wants it ready to split into services later.
+description: Split one large, overly complex repository into a modular monolith IN PLACE (strangler pattern) — measure real coupling (import graph, table ownership, git co-change), design the module map with the owner, add characterization tests and a boundary-violation ratchet, then extract modules leaf-first through small always-shippable steps executed by worker agents (opencode, pi, Antigravity, …), and decouple the database without downtime. Use when the user has a single big/legacy/tangled repo ("terlalu kompleks", "spaghetti", "god service") and wants it modular, wants boundaries, or wants it ready to split into services later.
 ---
 
 # Modularize a monolith in place
