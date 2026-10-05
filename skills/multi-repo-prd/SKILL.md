@@ -5,6 +5,9 @@ description: Turn several existing repositories into one modular product plan â€
 
 # Multi-repo â†’ modular product plan + prompt pack
 
+> Only **one** big, tangled repo to make modular in place? Use `modularize-monolith` instead. It reuses the
+> templates here for product docs when needed.
+
 Output: a planning set that lets many agents build in parallel **without inventing decisions**. Every ambiguity is
 either answered by the owner (recorded as `K-xx`) or written down as an open question. This skill plans only;
 execution is `agent-orchestrator`.

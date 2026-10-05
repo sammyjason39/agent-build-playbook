@@ -66,5 +66,5 @@ reading the code, dispatch agents, verify their work, merge, and own CI. The rul
 - `templates/`: `agent-header.md` (common prompt header) and `task-prompt.md` (per-task prompt).
 - `references/`: `parallelism.md`, `opencode.md`, `review-merge.md`.
 
-Related skills: `multi-repo-prd` (produces the prompt pack this skill executes), `hardening-review-loop` (the
+Related skills: `multi-repo-prd` and `modularize-monolith` (produce the plans and task prompts this skill executes), `hardening-review-loop` (the
 fix cycle after a build) and `monorepo-release`.

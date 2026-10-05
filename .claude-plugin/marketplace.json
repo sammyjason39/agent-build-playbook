@@ -1,6 +1,6 @@
 {
   "name": "agent-build-playbook",
-  "description": "Claude Code playbook: multi-repo PRD + prompt packs, opencode agent orchestration, hardening review loop, monorepo release.",
+  "description": "Claude Code playbook: multi-repo PRD + prompt packs, in-place monolith modularization, opencode agent orchestration, hardening review loop, monorepo release.",
   "owner": {
     "name": "sammyjason39"
   },
@@ -8,7 +8,7 @@
     {
       "name": "agent-build-playbook",
       "source": "./",
-      "description": "Multi-repo PRD + prompt packs, opencode agent orchestration, hardening review loop, monorepo release."
+      "description": "Multi-repo PRD + prompt packs, monolith modularization, opencode orchestration, hardening loop, monorepo release."
     }
   ]
 }

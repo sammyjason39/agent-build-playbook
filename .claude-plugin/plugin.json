@@ -1,6 +1,8 @@
 {
   "name": "agent-build-playbook",
-  "version": "0.1.0",
-  "description": "Plan multi-repo consolidations into a modular product and build them with orchestrated opencode agents: PRD + locked contracts + one-shot prompt packs, wave/parallelism planning, worktree-isolated agent runs, review-before-merge, hardening loops and monorepo release.",
-  "author": { "name": "sammyjason39" }
+  "version": "0.2.0",
+  "description": "Build modular products with orchestrated opencode agents: multi-repo PRD + one-shot prompt packs, in-place modularization of a single complex monolith (coupling analysis, boundary ratchet, strangler extraction), worktree-isolated agent runs with review-before-merge, hardening loops and monorepo release.",
+  "author": {
+    "name": "sammyjason39"
+  }
 }

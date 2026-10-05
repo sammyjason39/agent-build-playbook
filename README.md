@@ -1,14 +1,24 @@
 # agent-build-playbook
 
-Playbook dan skill Claude Code untuk alur kerja yang dipakai saat membangun platform modul 39-modul. Alurnya: beberapa repo
-digabung menjadi satu produk modular, dibangun oleh banyak agen opencode yang diorkestrasi Claude Code, sampai
-production ready dan ter-publish.
+Playbook dan skill Claude Code untuk membangun produk modular dengan banyak agen opencode yang diorkestrasi
+Claude Code, sampai production ready dan ter-publish. Ada dua titik awal:
+
+- **Beberapa repo → satu produk modular baru** (`multi-repo-prd`). Alur ini dipakai saat membangun platform
+  39 modul.
+- **Satu repo besar yang terlalu kompleks → modular di tempat** (`modularize-monolith`). Aplikasi tetap jalan
+  di setiap langkah.
 
 ```
             ┌────────────── multi-repo-prd ──────────────┐
 repo A ─┐   │ scan (opencode read-only) → brainstorm owner │
 repo B ─┼──▶│ → PRD (K-xx) + CONTRACT/DESIGN (LOCKED)      │──▶ prompt pack
 repo C ─┘   │ → CATALOG (coverage map) → prompt pack       │    (brief + wave + spec/modul)
+            └──────────────────────────────────────────────┘
+                     atau
+            ┌──────────── modularize-monolith ─────────────┐
+satu repo ─▶│ coupling (import, tabel, co-change) → peta   │──▶ rencana M0..M4
+besar       │ modul → characterization test + ratchet      │    + task ekstraksi kecil
+            │ → ekstraksi leaf-first, selalu bisa rilis    │
             └──────────────────────────────────────────────┘
                                 │
             ┌────────────── agent-orchestrator ────────────┐
@@ -34,13 +44,14 @@ repo C ─┘   │ → CATALOG (coverage map) → prompt pack       │    (bri
 | Skill | Kapan dipakai | Isi |
 |---|---|---|
 | [`multi-repo-prd`](skills/multi-repo-prd/SKILL.md) | "Gabungkan repo-repo ini jadi satu produk modular", "buatkan PRD + oneshot prompt" | `scan.sh` (opencode read-only per repo, di-pin ke SHA), template PRD / MODULE-CONTRACT / DESIGN / CATALOG / common brief / spec modul / RFC / dispatch |
+| [`modularize-monolith`](skills/modularize-monolith/SKILL.md) | "Repo ini terlalu kompleks, buat jadi modular", "pecah god service", "siapkan untuk microservice nanti" | `coupling-report.sh` (hotspot, churn, co-change dari git untuk bahasa apa pun), `scan-monolith.sh` (scan arsitektur opencode read-only), `ratchet.sh` (pelanggaran batas hanya boleh berkurang), playbook strangler, pemisahan DB tanpa downtime, template rencana dan task ekstraksi |
 | [`agent-orchestrator`](skills/agent-orchestrator/SKILL.md) | "Orkestrasi opencode", "jalankan paralel / satu per satu", "handover ke opencode" | `new-worktree.sh`, `launch.sh`, `watch.sh`, `resume.sh`, `scope-check.sh`, `ci-watch.sh`, header prompt agen, template task, cara menghitung paralelisme, panduan review dan merge |
 | [`hardening-review-loop`](skills/hardening-review-loop/SKILL.md) | "Cek pekerjaan agen", "perbaiki semua sampai production ready" | Checklist produksi (dari bug nyata), prompt untuk agen reviewer read-only, siklus temuan → fix → verifikasi |
 | [`monorepo-release`](skills/monorepo-release/SKILL.md) | "Publish", "bagaimana tim platform menginstal", "token read:packages" | `publish-github.mjs` (alias scope), `check-tarball.mjs`, workflow `release.yml`, langkah uji instal bersih |
 
 ## Instalasi
 
-Keempat skill memakai format standar **Agent Skills** (folder berisi `SKILL.md` dengan frontmatter `name` dan
+Semua skill memakai format standar **Agent Skills** (folder berisi `SKILL.md` dengan frontmatter `name` dan
 `description`, plus `scripts/`, `templates/`, `references/`). Format ini dibaca oleh Claude Code, opencode,
 Hermes, dan Antigravity. Bedanya hanya di folder tempat skill dicari.
 
@@ -66,7 +77,7 @@ dengan nama yang sama tidak akan ditimpa. Kalau sebuah tool atau sandbox tidak m
 | `agents` | `~/.agents/skills/<skill>` | opencode dan tool lain yang membaca `.agents/skills` |
 | `antigravity` | `~/.gemini/config/skills/<skill>` | Antigravity IDE |
 | `antigravity-cli` | `~/.gemini/antigravity-cli/skills/<skill>` | Antigravity CLI (`agy`) |
-| `hermes` | `~/.hermes/skills/agent-build-playbook/` | Hermes Agent (satu kategori berisi 4 skill) |
+| `hermes` | `~/.hermes/skills/agent-build-playbook/` | Hermes Agent (satu kategori berisi semua skill) |
 
 ### Claude Code
 
@@ -92,7 +103,7 @@ serta di `.opencode/skills/`, `.claude/skills/`, dan `.agents/skills/` di proyek
 
 ```sh
 ./install.sh opencode     # atau: ./install.sh claude  (opencode ikut membacanya)
-opencode debug skill | grep -E '"name": "(multi-repo-prd|agent-orchestrator|hardening-review-loop|monorepo-release)"'
+opencode debug skill | grep -E '"name": "(multi-repo-prd|modularize-monolith|agent-orchestrator|hardening-review-loop|monorepo-release)"'
 ```
 
 Untuk per proyek: `mkdir -p .opencode/skills && ln -s ~/Github/agent-build-playbook/skills/* .opencode/skills/`.
@@ -103,10 +114,11 @@ Untuk per proyek: `mkdir -p .opencode/skills && ln -s ~/Github/agent-build-playb
 ```sh
 hermes skills tap add sammyjason39/agent-build-playbook
 hermes skills install sammyjason39/agent-build-playbook/multi-repo-prd
+hermes skills install sammyjason39/agent-build-playbook/modularize-monolith
 hermes skills install sammyjason39/agent-build-playbook/agent-orchestrator
 hermes skills install sammyjason39/agent-build-playbook/hardening-review-loop
 hermes skills install sammyjason39/agent-build-playbook/monorepo-release
-hermes skills list | grep -E "multi-repo-prd|agent-orchestrator|hardening-review-loop|monorepo-release"
+hermes skills list | grep -E "multi-repo-prd|modularize-monolith|agent-orchestrator|hardening-review-loop|monorepo-release"
 ```
 Lihat isi skill sebelum memasang dengan `hermes skills inspect sammyjason39/agent-build-playbook/<skill>`.
 Untuk update: `hermes skills check` lalu `hermes skills update`.
@@ -153,8 +165,11 @@ baru setelah memasang.
 
 ## Cara pakai singkat
 
-1. **Rencana.** "Pakai skill multi-repo-prd untuk repo A, B, dan C. Targetnya repo X." Claude men-scan repo
-   lewat opencode, menanyakan keputusan penting ke Anda, lalu menulis `docs/` lengkap beserta prompt pack.
+1. **Rencana.** Pilih salah satu:
+   - "Pakai skill multi-repo-prd untuk repo A, B, dan C. Targetnya repo X." Claude men-scan repo lewat opencode,
+     menanyakan keputusan penting ke Anda, lalu menulis `docs/` lengkap beserta prompt pack.
+   - "Repo ini terlalu kompleks, pakai modularize-monolith." Claude mengukur kopling, mengusulkan peta modul,
+     lalu menulis `MODULARIZATION-PLAN.md`, characterization test, ratchet, dan task ekstraksi per gelombang.
 2. **Eksekusi.** "Jalankan wave W0 dengan agent-orchestrator." Claude menghitung paralelisme yang aman untuk
    mesin ini, menyiapkan worktree per agen, menjalankan opencode, memantau, me-review, merge, dan memantau CI.
 3. **Pengerasan.** "Cek ulang dan perbaiki sampai production ready." Claude menjalankan hardening-review-loop.
