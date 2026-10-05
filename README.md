@@ -8,6 +8,10 @@ Claude Code, sampai production ready dan ter-publish. Ada dua titik awal:
 - **Satu repo besar yang terlalu kompleks → modular di tempat** (`modularize-monolith`). Aplikasi tetap jalan
   di setiap langkah.
 
+**Isi:** [Skill](#skill) · [Pilih skill](#pilih-skill-yang-mana) · [Fitur lengkap](#fitur-lengkap) ·
+[Use case](#use-case) · [Instalasi](#instalasi) · [Contoh prompt](#contoh-prompt) ·
+[Prinsip](#prinsip-yang-dibawa-dari-proyek-referensi)
+
 ```
             ┌────────────── multi-repo-prd ──────────────┐
 repo A ─┐   │ scan (opencode read-only) → brainstorm owner │
@@ -48,6 +52,144 @@ besar       │ modul → characterization test + ratchet      │    + task eks
 | [`agent-orchestrator`](skills/agent-orchestrator/SKILL.md) | "Orkestrasi opencode", "jalankan paralel / satu per satu", "handover ke opencode" | `new-worktree.sh`, `launch.sh`, `watch.sh`, `resume.sh`, `scope-check.sh`, `ci-watch.sh`, header prompt agen, template task, cara menghitung paralelisme, panduan review dan merge |
 | [`hardening-review-loop`](skills/hardening-review-loop/SKILL.md) | "Cek pekerjaan agen", "perbaiki semua sampai production ready" | Checklist produksi (dari bug nyata), prompt untuk agen reviewer read-only, siklus temuan → fix → verifikasi |
 | [`monorepo-release`](skills/monorepo-release/SKILL.md) | "Publish", "bagaimana tim platform menginstal", "token read:packages" | `publish-github.mjs` (alias scope), `check-tarball.mjs`, workflow `release.yml`, langkah uji instal bersih |
+
+### Pilih skill yang mana?
+
+| Kondisi Anda | Mulai dari | Lanjut ke |
+|---|---|---|
+| Punya **beberapa repo** (produk lama, prototipe, repo tim berbeda) dan ingin satu produk modular baru | `multi-repo-prd` | `agent-orchestrator` → `hardening-review-loop` → `monorepo-release` |
+| Punya **satu repo besar** yang kusut (god service, tabel dipakai banyak fitur, sulit diubah) | `modularize-monolith` | `agent-orchestrator` → `hardening-review-loop` |
+| Sudah punya **rencana atau prompt pack** dan tinggal mendelegasikan ke agen | `agent-orchestrator` | `hardening-review-loop` |
+| Agen (opencode atau lainnya) **sudah selesai mengerjakan** sesuatu, dan Anda ragu kualitasnya | `hardening-review-loop` | `agent-orchestrator` untuk fix-nya |
+| Monorepo sudah jadi dan perlu **dirilis atau dikonsumsi tim lain** | `monorepo-release` | — |
+
+## Fitur lengkap
+
+### `multi-repo-prd`: beberapa repo → rencana produk modular + prompt pack
+- **Scan mendalam per repo oleh agen opencode read-only.** Agen bekerja di worktree sekali pakai yang di-pin ke
+  SHA, jadi repo asli tidak tersentuh. Laporannya mencakup stack, tenancy dan auth, inventaris domain (path, tabel,
+  route, UI, job, tes, kematangan), model data (termasuk float dan timestamp naif), integrasi, fitur AI, pola yang
+  layak dipakai ulang, utang teknis, dan pertanyaan untuk owner. Setiap klaim menyebut path.
+- **Brainstorm keputusan dengan owner.** Paling banyak 4 pertanyaan sekali tanya, masing-masing dengan rekomendasi.
+  Setiap jawaban langsung dicatat sebagai `K-xx` dan tidak ditanyakan ulang.
+- **Dokumen perencanaan lengkap:**
+  - `PRD.md`: keputusan terkunci, analisis sumber dengan SHA, wave, dan Definition of Done.
+  - `MODULE-CONTRACT.md`: ADR `A-xx` yang dikunci.
+  - `DESIGN.md`: token disalin dari UI acuan, plus archetype halaman.
+  - `CATALOG.md`: daftar modul, tabel dependensi, dan coverage map yang memastikan setiap fitur sumber punya
+    rumah atau alasan dibuang.
+  - Dokumen pendukung: `ORCHESTRATION-PLAN.md`, `AGENTS.md`, dan proses RFC.
+- **Prompt pack one-shot:**
+  - common brief: sumber yang di-pin, aturan keras, dan prosedur 11 langkah;
+  - brief per wave (W0 kontrak, W1 fan-out, W2 integrasi, W3 rilis);
+  - spec per modul (Keep/Generalise/Drop, kontrak, event, tool AI, acceptance yang bisa dites);
+  - tabel dispatch dengan jumlah agen paralel.
+- **Pemeriksaan kualitas:** konsistensi jumlah dan key modul di semua dokumen, kepemilikan file eksklusif, dan
+  stub kontrak supaya semua modul bisa dikerjakan paralel.
+
+### `modularize-monolith`: satu repo kusut → modular di tempat
+- **`coupling-report.sh`** membaca riwayat git, untuk bahasa apa pun dan tanpa build. Hasilnya:
+  - file dengan perubahan terbanyak beserta jumlah barisnya;
+  - churn per area;
+  - pasangan area yang sering berubah bersama, yaitu kopling tersembunyi yang tidak terlihat di graf import.
+- **`scan-monolith.sh`**: laporan kopling ditambah scan arsitektur oleh opencode read-only. Hasilnya: peta area,
+  graf dependensi dan siklus, matriks tabel × area (siapa menulis dan membaca), file panas yang dipakai bersama,
+  kandidat modul, dan urutan ekstraksi.
+- **Daftar tool analisis per stack:**
+  - TypeScript: dependency-cruiser, madge;
+  - Python: import-linter;
+  - Java/Kotlin: ArchUnit, Spring Modulith;
+  - Go, .NET, PHP (deptrac), Rails (packwerk).
+  Daftar ini disertai **tabel keputusan batas modul**.
+- **`ratchet.sh`** bekerja dengan checker apa pun. Pelanggaran batas yang ada sekarang menjadi baseline,
+  pelanggaran baru membuat CI gagal, dan pelanggaran yang sudah diperbaiki harus dihapus dari baseline. Hasilnya,
+  jumlah pelanggaran hanya bisa berkurang.
+- **Playbook strangler** dalam tiga fase:
+  - A, jaring pengaman: CI hijau, characterization test, kerangka modul, dan ratchet;
+  - B, ekstraksi per modul: kontrak → facade → arahkan ulang pemanggil → pindahkan isi → putus akses DB → putus
+    siklus → buktikan → kecilkan baseline;
+  - C, perkuat batas modul.
+- **Pemisahan database tanpa downtime:** kepemilikan tabel, schema per modul, read model, foreign key lintas modul
+  diganti ID plus job rekonsiliasi, outbox, dan pola expand → migrate → contract.
+- **Aturan paralel khusus satu repo:** file pemanggil juga punya pemilik, file panas bersama hanya punya satu
+  pemilik per wave, task dibuat lebih kecil, dan worktree di-rebase sebelum review.
+- **Template:** `MODULARIZATION-PLAN.md` (keputusan, peta modul, aturan batas, wave M0–M4, DoD per modul) dan
+  task ekstraksi untuk agen.
+
+### `agent-orchestrator`: Claude Code mengorkestrasi, opencode mengeksekusi
+- **Perencanaan wave dan paralelisme:** graf dependensi dipecah menjadi lapisan, kepemilikan file harus terpisah,
+  dan rumus `MAX_PARALLEL = min(task siap, RAM, CPU, anggaran API)`, dengan angka acuan dari server nyata.
+- **Isolasi per agen:** satu git worktree dan satu branch, plus `XDG_DATA_HOME` sendiri. Tanpa itu, opencode
+  paralel gagal dengan `Failed to execute statement` karena berbagi SQLite.
+- **Script:**
+  - `new-worktree.sh`: membuat worktree, menginstal dependensi, dan mencatat commit dasar;
+  - `launch.sh`: menjalankan agen dengan header prompt yang placeholder-nya terisi dan marker selesai yang unik;
+  - `watch.sh`: mencetak event untuk setiap commit, kondisi macet (`STALL`), dan `FINISHED`;
+  - `resume.sh`: melanjutkan sesi agen yang berhenti di tengah;
+  - `scope-check.sh`: menolak file di luar kepemilikan agen;
+  - `ci-watch.sh`: mencetak hasil tiap job CI sampai run selesai.
+- **Template prompt:** header agen (aturan worktree, kepemilikan, verifikasi, format laporan) dan task (temuan
+  sampai file:baris, perilaku yang diminta, tes, dokumen, out-of-scope).
+- **Review sebelum merge:** laporan → cek scope → baca diff berisiko → jalankan gate sendiri di hasil merge →
+  push → pantau CI sampai hijau → bersih-bersih, termasuk menghapus salinan `auth.json`.
+- **Penanganan masalah:** agen macet, berhenti di tengah, minta mengubah file di luar kepemilikannya, menabrak
+  keputusan terkunci, dan konflik merge (dilarang `--theirs` buta).
+
+### `hardening-review-loop`: sampai production ready, bukan sampai agen bilang selesai
+- **Checklist produksi** berisi bug nyata yang lolos dari agen:
+  - RLS dan role runtime database, timezone tenant;
+  - `uuidv7` di PostgreSQL 16, signature webhook, self-approval;
+  - TTL dan secret JWT, route publik;
+  - error 400 vs 500, drift dokumen hasil generate, tes flaky, tarball berisi tes.
+- **Prompt agen reviewer read-only:** temuan diberi severity, file:baris, skenario gagal yang konkret, dan tes
+  pembuktiannya.
+- **Siklus:** temuan dikelompokkan per kepemilikan → task perbaikan → agen → verifikasi setiap klaim → merge → CI.
+  Kalau ada trade-off, Claude bertanya ke owner dan mencatatnya sebagai K-xx atau RFC.
+
+### `monorepo-release`: rilis dan konsumsi package
+- **Gate tarball:** tidak ada tes, tidak ada `node_modules`, dan setiap package yang dipublish dicek, termasuk
+  package bersarang.
+- **Publish ke GitHub Packages dengan alias scope.** Nama sumber tetap, misalnya `@acme/*`, karena
+  `publish-github.mjs` menulis ulang tarball menjadi `@<owner>/acme-*` dengan alias npm. Dependensi internal
+  tetap ter-resolve, dan script aman dijalankan ulang (versi yang sudah ada dilewati).
+- **Workflow `release.yml`** memakai `GITHUB_TOKEN` (`packages: write`), jadi tidak perlu token pribadi.
+- **Tag dan uji instal bersih** dari sudut pandang konsumen: tidak ada `workspace:` di lockfile, dan import nama
+  asli berjalan.
+- **Akses konsumen:**
+  - laptop: device code untuk `read:packages`;
+  - CI repo lain: `packages: read` plus *Manage Actions access*;
+  - server: PAT read-only;
+  - catatan untuk package yang berisi source TypeScript.
+
+## Use case
+
+1. **Menggabungkan beberapa produk lama menjadi satu platform modular.** Contoh: POS, HR, dan CRM dari tiga
+   repo berbeda dijadikan satu "AI Business OS" yang modulnya bisa diaktifkan per tenant.
+   *Skill:* `multi-repo-prd` → `agent-orchestrator` → `hardening-review-loop` → `monorepo-release`.
+   *Hasil:* PRD dan kontrak terkunci, prompt pack untuk puluhan modul, modul dibangun agen secara paralel,
+   lalu rilis package.
+2. **Memodularkan monolith legacy tanpa menghentikan rilis.** Contoh: backend NestJS, Django, Spring, atau Rails
+   dengan `order.service` 2.500 baris dan tabel `orders` yang ditulis lima fitur.
+   *Skill:* `modularize-monolith` → `agent-orchestrator`.
+   *Hasil:* peta modul berbasis bukti, ratchet di CI, ekstraksi bertahap tiap modul, dan database dipisah tanpa
+   downtime.
+3. **Menyiapkan pemecahan ke microservice nanti.** Batas modul, kontrak, dan event dibuat dulu di dalam monolith,
+   sehingga memisahkan satu modul menjadi service hanya perubahan deployment.
+   *Skill:* `modularize-monolith` (atau `multi-repo-prd` untuk produk baru).
+4. **Mendelegasikan pekerjaan besar ke opencode di server kecil.** Agen berjalan satu per satu, terisolasi, dan
+   dipantau, sementara Claude Code me-review dan merge.
+   *Skill:* `agent-orchestrator`.
+5. **Mengaudit hasil kerja agen AI atau tim lain sebelum produksi.**
+   *Skill:* `hardening-review-loop`.
+   *Hasil:* daftar temuan dengan bukti, task perbaikan, dan CI hijau.
+6. **Menambah fitur lintas modul dengan keputusan sensitif**, misalnya route publik tanpa login atau batas
+   umur token. Claude bertanya ke owner, mencatat keputusan (K-xx atau RFC), lalu mendelegasikan implementasinya.
+   *Skill:* `hardening-review-loop` + `agent-orchestrator`.
+7. **Merilis monorepo internal ke GitHub Packages** dan memberi akses ke tim platform.
+   *Skill:* `monorepo-release`.
+8. **Mencari kopling tersembunyi** sebelum refactor atau estimasi. Satu perintah `coupling-report.sh` menunjukkan
+   file paling berisiko dan area yang selalu berubah bersama.
+   *Skill:* `modularize-monolith` (script-nya bisa dipakai sendiri).
 
 ## Instalasi
 
@@ -163,17 +305,75 @@ baru setelah memasang.
 - Script mencari konfigurasi lewat `ORCH_ROOT`. Jalankan `export ORCH_ROOT=~/Github/<repo>-wt/_orchestration`
   sebelum memakai `agent-orchestrator` (lihat `skills/agent-orchestrator/references/opencode.md`).
 
-## Cara pakai singkat
+## Contoh prompt
 
-1. **Rencana.** Pilih salah satu:
-   - "Pakai skill multi-repo-prd untuk repo A, B, dan C. Targetnya repo X." Claude men-scan repo lewat opencode,
-     menanyakan keputusan penting ke Anda, lalu menulis `docs/` lengkap beserta prompt pack.
-   - "Repo ini terlalu kompleks, pakai modularize-monolith." Claude mengukur kopling, mengusulkan peta modul,
-     lalu menulis `MODULARIZATION-PLAN.md`, characterization test, ratchet, dan task ekstraksi per gelombang.
-2. **Eksekusi.** "Jalankan wave W0 dengan agent-orchestrator." Claude menghitung paralelisme yang aman untuk
-   mesin ini, menyiapkan worktree per agen, menjalankan opencode, memantau, me-review, merge, dan memantau CI.
-3. **Pengerasan.** "Cek ulang dan perbaiki sampai production ready." Claude menjalankan hardening-review-loop.
-4. **Rilis.** "Publish." Claude menjalankan monorepo-release.
+Ucapkan dalam bahasa apa pun. Skill aktif otomatis dari konteks, atau sebut namanya agar pasti.
+
+### Perencanaan dari beberapa repo (`multi-repo-prd`)
+```
+Pelajari repo ~/Github/pos-app, ~/Github/hr-app, dan ~/Github/crm-app. Aku mau semuanya jadi satu produk
+modular di repo github.com/acme/acme-modular. Pakai multi-repo-prd: scan tiap repo pakai opencode, ajak aku
+brainstorming keputusan penting, lalu buat PRD, kontrak, design, catalog, dan oneshot prompt per modul.
+```
+```
+Kunci arsitektur dan tampilannya mengikuti dashboard di repo pos-app. Tambahkan modul projects dan timesheet.
+Catat sebagai keputusan owner.
+```
+
+### Memodularkan satu repo besar (`modularize-monolith`)
+```
+Repo ~/Github/legacy-api ini terlalu kompleks. Pakai modularize-monolith: ukur kopling (import, tabel,
+co-change), usulkan peta modul, lalu tanya aku keputusan yang perlu. Jangan ubah kode dulu.
+```
+```
+Jalankan coupling-report untuk apps/backend/src/modules di depth 5, enam bulan terakhir. Jelaskan area mana
+yang sebaiknya jadi satu modul dan mana yang butuh kontrak.
+```
+```
+Siapkan wave M0: characterization test untuk 10 hotspot teratas, kerangka modules/, dependency-cruiser,
+dan ratchet di CI. Setelah itu ekstraksi modul billing dulu, dalam task kecil.
+```
+
+### Orkestrasi agen (`agent-orchestrator`)
+```
+Jalankan wave W1 batch pertama pakai opencode. Server ini 4 CPU / 8 GB, jadi hitung dulu berapa agen yang
+aman paralel. Satu worktree per agen, review setiap hasil sebelum merge, dan pantau CI sampai hijau.
+```
+```
+Server kehabisan resource. Jalankan agen satu per satu saja dan kabari aku setiap milestone.
+```
+```
+Agen p3-billing berhenti di tengah. Lanjutkan sesinya, lalu review scope dan diff-nya.
+```
+
+### Review dan pengerasan (`hardening-review-loop`)
+```
+Cek pekerjaan opencode di repo ini. Apakah arahnya sudah benar? Buat daftar temuan dengan file:baris dan
+tingkat keparahan.
+```
+```
+Perbaiki semua yang masih kurang sampai production ready. Orkestrasi beberapa opencode untuk fix-nya,
+commit, push, dan pastikan CI hijau.
+```
+```
+Fitur booking tanpa login boleh asal ada email atau nomor WhatsApp untuk verifikasi. Umur token JWT maksimal
+48 jam. Catat keputusan ini lalu implementasikan.
+```
+
+### Rilis (`monorepo-release`)
+```
+Publish semua package ke GitHub Packages organisasi kita. Kode tetap pakai scope @acme. Jalankan lewat
+GitHub Actions, buat tag, lalu uji instal bersih di proyek kosong.
+```
+```
+Bagaimana tim platform menginstal package-nya? Tulis cara akses read:packages untuk laptop, CI, dan server.
+```
+
+### End-to-end dalam satu sesi
+```
+Mulai dari scan 3 repo ini sampai rilis: rencana → bangun modul pakai opencode (satu per satu) → review
+dan perbaiki sampai production ready → publish. Laporkan progres dalam Bahasa Indonesia.
+```
 
 ## Prinsip yang dibawa dari proyek referensi
 
