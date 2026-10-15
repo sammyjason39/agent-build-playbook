@@ -44,6 +44,13 @@ Then, for each task:
 1. **Ground yourself.** Read the repo's rules (`AGENTS.md`/`CLAUDE.md`, contributing docs, architecture decisions)
    and the code you are about to delegate. Prompts written without reading the code produce workers that
    rediscover, or invent, the problem.
+   Before launching or resuming, inspect ALL repository worktrees, their commits/status, ownership registry,
+   and task-native session/log/exit artifacts. Hermes `process list` is session-scoped and may omit workers
+   launched by another coordinator. Verify actual PID/cwd/session liveness where an existing lease or run
+   is ambiguous; adopt completed artifacts instead of creating duplicate writers. Do not kill user-owned
+   agent instances merely because they are absent from this session's process list. For branches created
+   before an asset merge, compare each task against its recorded base, not only current main: apparent
+   deletions in `main..worker` may be ancestry differences rather than files the worker deleted.
 2. **Split and plan parallelism** (`references/parallelism.md`). Use one coherent ownership slice per task, and
    keep ownership disjoint between parallel tasks. Compute `MAX_PARALLEL` from RAM/CPU. On a small or shared
    machine, run workers **one at a time**. Write the plan as a short table.
