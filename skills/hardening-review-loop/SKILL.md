@@ -38,7 +38,15 @@ watch CI. While an agent runs, do the non-overlapping work yourself, such as doc
 outside its ownership.
 
 ## 4. Verify the claims
-For every "fixed" claim, find the test that proves it and run it. Also read the diff for:
+For every "fixed" claim, find the test that proves it and run it. Record repository status and generated-file
+hashes before and after the gate: a green test suite can still rewrite tracked candidate metadata or export
+absolute worktree paths. Run real-helper tests into private temporary output directories, and verify that
+regeneration reproduces committed portable metadata without manual normalization. Reject a clean-tree claim
+if re-running tests dirties the checkout.
+
+For private-output utilities, probe containment as a PURE validator before any write: protect the canonical checkout AND registered worker checkouts, not only `process.cwd()` or caller-provided `repoRoot`. Resolve the nearest existing ancestor plus the missing suffix so a non-existent output below a symlink cannot escape. Task-root environment variables must not override forbidden roots. Reuse already-hardened project guards and image parsers. RED write fixtures use fabricated temporary checkouts only; canonical paths get read-only validator probes. Inspect actual rendered evidence for decoded dimensions, truthful captions and annotation coordinates—green helper tests alone do not prove correct visual evidence.
+
+Also read the diff for:
 - self-approval paths;
 - fail-open defaults;
 - blanket conflict resolutions;

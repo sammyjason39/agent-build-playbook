@@ -31,6 +31,7 @@ Set the default in `orch.env` (`EXECUTOR`, `EXEC_MODEL`, `EXEC_EFFORT`), or over
 | `custom` | anything with a non-interactive mode | `bash -c "$EXEC_CMD"` with `$PROMPT_FILE`, `$WT`, `$AGENT_DATA` exported | your flags | your choice |
 
 Notes:
+- **OpenCode v2:** the built-in opencode executor targets v1 (`--dir`, `--variant`, legacy `auth.json`). Use the supported `custom` executor with a v2 adapter: launch `opencode run --standalone` from the worktree cwd and pass `--model provider/model#variant` when needed. For private XDG_DATA_HOME, export credentials through `opencode auth export --standalone` into memory, filter to the required integration, and import through stdin with `opencode auth import --standalone` in the private environment. Do not copy the shared live SQLite DB or print secrets. Delete private credential data after the worker finishes. `--auto` and ownership prompts are not OS confinement. Verify every worker claim; test pipelines can mask failures, and passing expanded tests do not prove strict per-behavior TDD.
 - Every executor runs **with auto-approved tools** (`--auto`, pi's default, `--dangerously-skip-permissions`).
   That is acceptable only because each worker works in a **disposable git worktree** on its own branch and you
   review before merging. Never point a worker at your main checkout.
